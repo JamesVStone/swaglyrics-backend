@@ -380,7 +380,7 @@ def issue_webhook():
             message = discord.Embed(
                 title=":star: Github Star :star:",
                 type="rich",
-                colour="gold"
+                colour=0xffcc00
             )
             message.add_field(name="Starer", value=json.loads(request.data)['sender']['login'])
             channel.send(embed=message)
