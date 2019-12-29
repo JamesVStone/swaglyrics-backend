@@ -4,6 +4,7 @@ import os
 import requests
 import git
 import json
+import discord
 from requests.auth import HTTPBasicAuth
 from flask import Flask, request, abort, render_template
 from swaglyrics.cli import stripper
@@ -24,6 +25,10 @@ limiter = Limiter(
 username = os.environ['USERNAME']
 gh_token = os.environ['GH_TOKEN']
 passwd = os.environ['PASSWD']
+
+# discord configuration
+discord_client = discord.Client()
+ds_token = os.environ['DISCORD_TOKEN']
 
 # declare the Spotify token and expiry time
 token = ''
@@ -339,39 +344,48 @@ def issue_webhook():
         event = request.headers.get('X-GitHub-Event')
         if event == "ping":
             return json.dumps({'msg': 'Hi!'})
-        if event != "issues":
-            return json.dumps({'msg': "Wrong event type"})
 
-        x_hub_signature = request.headers.get('X-Hub-Signature')
-        # webhook content type should be application/json for request.data to have the payload
-        # request.data is empty in case of x-www-form-urlencoded
-        if not is_valid_signature(x_hub_signature, request.data):
-            print('Deploy signature failed: {sig}'.format(sig=x_hub_signature))
-            abort(abort_code)
+        if event == "issues":
+            x_hub_signature = request.headers.get('X-Hub-Signature')
+            # webhook content type should be application/json for request.data to have the payload
+            # request.data is empty in case of x-www-form-urlencoded
+            if not is_valid_signature(x_hub_signature, request.data):
+                print('Deploy signature failed: {sig}'.format(sig=x_hub_signature))
+                abort(abort_code)
 
-        payload = request.get_json()
-        if payload is None:
-            print(f'Deploy payload is empty: {payload}')
-            abort(abort_code)
+            payload = request.get_json()
+            if payload is None:
+                print(f'Deploy payload is empty: {payload}')
+                abort(abort_code)
 
-        try:
-            label = payload['issue']['labels'][0]['name']
-            # should be unsupported song for our purposes
-            repo = payload['repository']['name']
-            # should be from the SwagLyrics for Spotify repo
-        except IndexError:
-            return not_relevant
+            try:
+                label = payload['issue']['labels'][0]['name']
+                # should be unsupported song for our purposes
+                repo = payload['repository']['name']
+                # should be from the SwagLyrics for Spotify repo
+            except IndexError:
+                return not_relevant
 
-        if payload['action'] == 'closed' and label == 'unsupported song' and repo == 'SwagLyrics-For-Spotify':
-            # delete line from unsupported.txt if issue closed
-            title = payload['issue']['title']
-            title = wdt.match(title)
-            song = title.group(1)
-            artist = title.group(2)
-            print(f'{song} by {artist} is to be deleted.')
-            cnt = del_line(song, artist)
-            return f'Deleted {cnt} instances from unsupported.txt'
-
+            if payload['action'] == 'closed' and label == 'unsupported song' and repo == 'SwagLyrics-For-Spotify':
+                # delete line from unsupported.txt if issue closed
+                title = payload['issue']['title']
+                title = wdt.match(title)
+                song = title.group(1)
+                artist = title.group(2)
+                print(f'{song} by {artist} is to be deleted.')
+                cnt = del_line(song, artist)
+                return f'Deleted {cnt} instances from unsupported.txt'
+        if event == "star":
+            channel = discord_client.fetch_guild(659538118403293194)
+            message = discord.Embed(
+                title=":star: Github Star :star:",
+                type="rich",
+                colour="gold"
+            )
+            message.add_field(name="Starer", value=json.loads(request.data)['sender']['login'])
+            channel.send(embed=message)
+        else:
+            return json.dumps({'msg': 'Wrong event type'})
         return not_relevant
 
 
@@ -444,3 +458,6 @@ def hello():
     with open('unsupported.txt', 'r', encoding="utf-8") as f:
         data = f.readlines()
     return render_template('hello.html', unsupported_songs=data)
+
+
+discord_client.run(ds_token)
