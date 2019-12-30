@@ -12,7 +12,6 @@ from swaglyrics import __version__
 from flask_sqlalchemy import SQLAlchemy
 from flask_limiter import Limiter
 from flask_limiter.util import get_ipaddr
-from mock import Mock
 
 from utils import is_valid_signature, request_from_github
 
@@ -52,8 +51,7 @@ SQLALCHEMY_DATABASE_URI = "mysql+mysqlconnector://{username}:{password}@{usernam
 app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_POOL_RECYCLE"] = 280
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-# db = SQLAlchemy(app)
-db = Mock()
+db = SQLAlchemy(app)
 
 
 # you should manually initialize the db for first run
@@ -453,4 +451,3 @@ def hello():
     return render_template('hello.html', unsupported_songs=data)
 
 
-discord_client.run(ds_token)
