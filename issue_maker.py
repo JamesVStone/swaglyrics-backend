@@ -51,9 +51,9 @@ asrg = re.compile(r'[A-Za-z\s]+')
 # SQLAlchemy configuration
 SQLALCHEMY_DATABASE_URI = "mysql+mysqlconnector://{username}:{password}@{username}.mysql.pythonanywhere" \
                           "-services.com/{username}${databasename}".format(
-    username=username,
-    password=os.environ['DB_PWD'],
-    databasename="strippers")
+                                                                            username=username,
+                                                                            password=os.environ['DB_PWD'],
+                                                                            databasename="strippers")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_POOL_RECYCLE"] = 280
