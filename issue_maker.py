@@ -336,7 +336,7 @@ def delete_line():
 
 
 """
-`github_webhook` function handles all notification from GitHub relating to the org. Documentation for the webhooks can 
+`github_webhook` function handles all notification from GitHub relating to the org. Documentation for the webhooks can
 be found at https://developer.github.com/webhooks/
 """
 
@@ -381,7 +381,7 @@ def github_webhook():
             except IndexError:
                 return not_relevant
 
-            """ 
+            """
             If the issue is concerning the `SwagLyrics-For-Spotify repo, the issue is being closed and the issue had
             the tag `unsupported song` then remove line from unsupported.txt
             """
