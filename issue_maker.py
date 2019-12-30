@@ -4,7 +4,7 @@ import os
 import requests
 import git
 import json
-import discord
+from . import discord_bot
 from requests.auth import HTTPBasicAuth
 from flask import Flask, request, abort, render_template
 from swaglyrics.cli import stripper
@@ -376,10 +376,8 @@ def issue_webhook():
                 cnt = del_line(song, artist)
                 return f'Deleted {cnt} instances from unsupported.txt'
         if event == "star":
-            channel = discord_client.fetch_channel(659538118403293194)
-
-            message.add_field(name="Starer", value=json.loads(request.data)['sender']['login'])
-            channel.send('hi')
+            payload = request.get_json()
+            discord_bot.new_star(payload['sender']['login'])
         else:
             return json.dumps({'msg': 'Wrong event type'})
         return not_relevant
