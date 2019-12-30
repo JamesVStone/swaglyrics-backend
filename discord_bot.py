@@ -16,14 +16,12 @@ async def new_star(username):
         colour=0xffcc00,
         url="https://swaglyrics.dev/"
     )
-    # message.add_field(name="Hats off to you ", value=f"@{username}", inline=True)
     await activity_channel.send(embed=message)
 
 
 @client.event
 async def on_ready():
     print(f"We are logged in and ready to shine as {client.user}")
-    # await new_star("username")
     activity = discord.Game("with Git")
     # Set discord status
     await client.change_presence(activity=activity)
