@@ -4,7 +4,7 @@ import os
 import requests
 import git
 import json
-from . import discord_bot
+import discord_bot
 from requests.auth import HTTPBasicAuth
 from flask import Flask, request, abort, render_template
 from swaglyrics.cli import stripper
@@ -12,6 +12,7 @@ from swaglyrics import __version__
 from flask_sqlalchemy import SQLAlchemy
 from flask_limiter import Limiter
 from flask_limiter.util import get_ipaddr
+from mock import Mock
 
 from utils import is_valid_signature, request_from_github
 
@@ -25,10 +26,6 @@ limiter = Limiter(
 username = os.environ['USERNAME']
 gh_token = os.environ['GH_TOKEN']
 passwd = os.environ['PASSWD']
-
-# discord configuration
-discord_client = discord.Client()
-ds_token = os.environ['DISCORD_TOKEN']
 
 # declare the Spotify token and expiry time
 token = ''
@@ -55,7 +52,8 @@ SQLALCHEMY_DATABASE_URI = "mysql+mysqlconnector://{username}:{password}@{usernam
 app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_POOL_RECYCLE"] = 280
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db = SQLAlchemy(app)
+# db = SQLAlchemy(app)
+db = Mock()
 
 
 # you should manually initialize the db for first run
@@ -330,10 +328,11 @@ def delete_line():
     return f"Removed {cnt} instances of {song} by {artist} from unsupported.txt successfully."
 
 
+# This is the hook for all github traffic
 @app.route('/issue_closed', methods=['POST'])
 @request_from_github()
 @limiter.exempt
-def issue_webhook():
+def github_webhook():
     if request.method != 'POST':
         return 'OK'
     else:
