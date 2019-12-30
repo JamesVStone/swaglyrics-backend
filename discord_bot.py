@@ -14,7 +14,7 @@ async def new_star(username):
         colour=0xffcc00,
         url="https://swaglyrics.dev/"
     )
-    message.add_field(name="Hats off to you ", value="@JamesVStone", inline=True)
+    message.add_field(name="Hats off to you ", value=f"@{username}", inline=True)
     await activity_channel.send(embed=message)
 
 
