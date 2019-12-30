@@ -17,12 +17,15 @@ import discord_bot
 from utils import is_valid_signature, request_from_github
 
 app = Flask(__name__)
+
+# request limiter base rules
 limiter = Limiter(
     app,
     key_func=get_ipaddr,
     default_limits=["1000 per day"]
 )
 
+# Load env variables for usage
 username = os.environ['USERNAME']
 gh_token = os.environ['GH_TOKEN']
 passwd = os.environ['PASSWD']
@@ -38,11 +41,14 @@ update_text = 'Please update SwagLyrics to the latest version to get better supp
 # genius stripper regex
 alg = re.compile(r'[^\sa-zA-Z0-9]+')
 gstr = re.compile(r'(?<=/)[-a-zA-Z0-9]+(?=-lyrics$)')
+
 # webhook regex
 wdt = re.compile(r'(.+) by (.+) unsupported.')
+
 # artist and song regex
 asrg = re.compile(r'[A-Za-z\s]+')
 
+# SQLAlchemy configuration
 SQLALCHEMY_DATABASE_URI = "mysql+mysqlconnector://{username}:{password}@{username}.mysql.pythonanywhere" \
                           "-services.com/{username}${databasename}".format(
     username=username,
@@ -54,10 +60,11 @@ app.config["SQLALCHEMY_POOL_RECYCLE"] = 280
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
-
-# you should manually initialize the db for first run
-# >>> from issue_maker import db
-# >>> db.create_all()
+"""
+ you should manually initialize the db for first run
+ >>> from issue_maker import db
+ >>> db.create_all()
+"""
 
 
 class Lyrics(db.Model):
