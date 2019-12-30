@@ -22,8 +22,8 @@ async def new_star(username):
 @client.event
 async def on_ready():
     print(f"We are logged in and ready to shine as {client.user}")
-    activity = discord.Game("with Git")
-    # Set discord status
+    activity = discord.Game("with GitHub issues")
+    # Set discord status to say 'Playing with GitHub issues'
     await client.change_presence(activity=activity)
 
 
