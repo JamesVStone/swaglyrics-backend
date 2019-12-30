@@ -46,6 +46,7 @@ def request_from_github(abort_code=418):
                 if not (ip_header := request.headers.get('CF-Connecting-IP')):
                     # necessary if ip from cloudflare
                     ip_header = request.headers['X-Real-IP']
+
                 request_ip = ip_address(u'{0}'.format(ip_header))
                 meta_json = requests.get('https://api.github.com/meta').json()
                 hook_blocks = meta_json['hooks']

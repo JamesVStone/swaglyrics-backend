@@ -376,14 +376,10 @@ def issue_webhook():
                 cnt = del_line(song, artist)
                 return f'Deleted {cnt} instances from unsupported.txt'
         if event == "star":
-            channel = discord_client.fetch_guild(659538118403293194)
-            message = discord.Embed(
-                title=":star: Github Star :star:",
-                type="rich",
-                colour=0xffcc00
-            )
+            channel = discord_client.fetch_channel(659538118403293194)
+
             message.add_field(name="Starer", value=json.loads(request.data)['sender']['login'])
-            channel.send(embed=message)
+            channel.send('hi')
         else:
             return json.dumps({'msg': 'Wrong event type'})
         return not_relevant
