@@ -44,7 +44,8 @@ wdt = re.compile(r'(.+) by (.+) unsupported.')
 asrg = re.compile(r'[A-Za-z\s]+')
 
 SQLALCHEMY_DATABASE_URI = "mysql+mysqlconnector://{username}:{password}@{username}.mysql.pythonanywhere-services." \
-                          "com/{username}${databasename}".format(
+                          "com/{username}${databasename}" \
+    .format(
     username=username,
     password=os.environ['DB_PWD'],
     databasename="strippers",
@@ -435,23 +436,26 @@ def update_webhook():
         return json.dumps({'msg': "Wrong event type"})
 
 
+# returns the latest version of swaglyrics as a string
 @app.route('/version')
 def latest_version():
-    # latest swaglyrics version
     return __version__
 
 
+# test path to assist in testing of server
 @app.route('/test')
 def swag():
     return os.environ['BLAZEIT']
 
 
+# Route to test rate limiter is functioning correctly
 @app.route("/slow")
 @limiter.limit("1 per day")
 def slow():
     return "24"
 
 
+# Dispatch webpage for website home
 @app.route('/')
 @limiter.exempt
 def hello():
