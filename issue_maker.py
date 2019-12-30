@@ -50,6 +50,7 @@ SQLALCHEMY_DATABASE_URI = "mysql+mysqlconnector://{username}:{password}@{usernam
     password=os.environ['DB_PWD'],
     databasename="strippers",
 )
+
 app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_POOL_RECYCLE"] = 280
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -330,8 +331,8 @@ def delete_line():
 
 
 """
-`github_webhook` function handles all notification from GitHub relating to the org. Documentation for the webhooks can be
-found at https://developer.github.com/webhooks/
+`github_webhook` function handles all notification from GitHub relating to the org. Documentation for the webhooks can 
+be found at https://developer.github.com/webhooks/
 """
 
 
