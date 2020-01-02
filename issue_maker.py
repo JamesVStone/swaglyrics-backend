@@ -216,10 +216,10 @@ def check_song(song, artist):
     return False
 
 
-def check_stripper(song, artist):
-    # check if song has a lyrics page on genius
-    r = requests.get(f'https://genius.com/{stripper(song, artist)}-lyrics')
-    return r.status_code == requests.codes.ok
+# def check_stripper(song, artist):
+#     # check if song has a lyrics page on genius
+#     r = requests.get(f'https://genius.com/{stripper(song, artist)}-lyrics')
+#     return r.status_code == requests.codes.ok
 
 
 def del_line(song, artist):
