@@ -13,9 +13,9 @@ from requests.auth import HTTPBasicAuth
 from swaglyrics import __version__
 from swaglyrics.cli import stripper
 
-import discord_bot
 from utils import is_valid_signature, request_from_github
 
+# start flask app
 app = Flask(__name__)
 
 # request limiter base rules
@@ -58,6 +58,7 @@ SQLALCHEMY_DATABASE_URI = "mysql+mysqlconnector://{username}:{password}@{usernam
 app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_POOL_RECYCLE"] = 280
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 db = SQLAlchemy(app)
 
 """
@@ -215,10 +216,10 @@ def check_song(song, artist):
     return False
 
 
-# def check_stripper(song, artist):
-#     # check if song has a lyrics page on genius
-#     r = requests.get(f'https://genius.com/{stripper(song, artist)}-lyrics')
-#     return r.status_code == requests.codes.ok
+def check_stripper(song, artist):
+    # check if song has a lyrics page on genius
+    r = requests.get(f'https://genius.com/{stripper(song, artist)}-lyrics')
+    return r.status_code == requests.codes.ok
 
 
 def del_line(song, artist):
@@ -324,6 +325,7 @@ def master_unsupported():
     return data
 
 
+# delete song from unsupported.txt when it becomes available
 @app.route("/delete_unsupported", methods=["POST"])
 def delete_line():
     auth = request.form['auth']
@@ -341,6 +343,7 @@ be found at https://developer.github.com/webhooks/
 """
 
 
+# helper function
 def validate_request(req):
     abort_code = 418
     x_hub_signature = req.headers.get('X-Hub-Signature')
@@ -357,7 +360,7 @@ def validate_request(req):
 
 @app.route('/issue_closed', methods=['POST'])
 @request_from_github()  # verify that request origin is github
-@limiter.exempt  # disable limiter for webhook
+@limiter.exempt  # disable limiter for firehose
 def github_webhook():
     if request.method != 'POST':
         return 'OK'
@@ -369,7 +372,7 @@ def github_webhook():
 
         # Respond to ping as 200 OK
         if event == "ping":
-            return json.dumps({'msg': 'Hi!'})
+            return json.dumps({'msg': 'pong'})
 
         #
         elif event == "issues":
@@ -396,10 +399,7 @@ def github_webhook():
 
         # Respond to star event by posting on discord in #gh-activity on SwagLyrics guild
         elif event == "star":
-            payload = request.get_json()
-            discord_bot.new_star(payload['sender']['login'])
-
-        # else return application/json response the event is of the wrong type
+            pass
         else:
             return json.dumps({'msg': 'Wrong event type'})
 
