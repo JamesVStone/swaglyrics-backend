@@ -4,4 +4,3 @@ GitPython
 flask_sqlalchemy
 swaglyrics
 requests
-discord
