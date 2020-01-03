@@ -13,7 +13,7 @@ from requests.auth import HTTPBasicAuth
 from swaglyrics import __version__
 from swaglyrics.cli import stripper
 
-from utils import request_from_github
+from utils import request_from_github, validate_request
 
 # start flask app
 app = Flask(__name__)
