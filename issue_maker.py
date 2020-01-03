@@ -13,7 +13,7 @@ from requests.auth import HTTPBasicAuth
 from swaglyrics import __version__
 from swaglyrics.cli import stripper
 
-from utils import is_valid_signature, request_from_github
+from utils import request_from_github
 
 # start flask app
 app = Flask(__name__)
@@ -341,21 +341,6 @@ def delete_line():
 `github_webhook` function handles all notification from GitHub relating to the org. Documentation for the webhooks can
 be found at https://developer.github.com/webhooks/
 """
-
-
-# helper function
-def validate_request(req):
-    abort_code = 418
-    x_hub_signature = req.headers.get('X-Hub-Signature')
-    if not is_valid_signature(x_hub_signature, req.data):
-        print(f'Deploy signature failed: {x_hub_signature}')
-        abort(abort_code)
-
-    if (payload := request.get_json()) is None:
-        print(f'Payload is empty: {payload}')
-        abort(abort_code)
-
-    return payload
 
 
 @app.route('/issue_closed', methods=['POST'])
