@@ -186,7 +186,8 @@ def create_issue(song, artist, version, stripper='not supported yet'):
 
 def check_song(song, artist):
     """
-    Check if song, artist pair exist on Spotify or not using the Spotify API.
+    Check if song, artist pair exist on Spotify or not using the Spotify API. Also checks if song is instrumental
+    in which case it would not have lyrics.
 
     This is done to verify if the data received is legit or not. An exact comparison is done since the data is
     supposed to be from Spotify in the first place.
@@ -206,12 +207,18 @@ def check_song(song, artist):
     except KeyError:
         return False
     if data:
-        print(data[0]['artists'][0]['name'], data[0]['name'])
-        if data[0]['name'] == song and data[0]['artists'][0]['name'] == artist:
+        track = data[0]
+        print(track['artists'][0]['name'], track['name'])
+        if track['name'] == song and track['artists'][0]['name'] == artist:
             print(f'{song} and {artist} legit on Spotify')
+            metadata = requests.get(f'https://api.spotify.com/v1/audio-features/{track["id"]}', headers=headers)
+            if metadata["instrumentalness"] > 0.5:
+                print(f'{song} and {artist} are instrumental')
+                return False
             return True
     else:
         print(f'{song} and {artist} don\'t seem legit.')
+
     return False
 
 
