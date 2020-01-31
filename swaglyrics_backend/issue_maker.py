@@ -9,11 +9,14 @@ from flask import Flask, request, abort, render_template
 from flask_limiter import Limiter
 from flask_limiter.util import get_ipaddr
 from flask_sqlalchemy import SQLAlchemy
+
+from datetime import datetime as dt
+
 from requests.auth import HTTPBasicAuth
 from swaglyrics import __version__
 from swaglyrics.cli import stripper
 
-from utils import request_from_github, validate_request
+from swaglyrics_backend.utils import request_from_github, validate_request, get_jwt, get_installation_access_token
 
 # start flask app
 app = Flask(__name__)
@@ -25,14 +28,18 @@ limiter = Limiter(
     default_limits=["1000 per day"]
 )
 
-# Load env variables for usage
+
+# database env variables
 username = os.environ['USERNAME']
-gh_token = os.environ['GH_TOKEN']
 passwd = os.environ['PASSWD']
 
+# github variables
+gh_token = ''
+gh_token_expiry = 0
+
 # declare the Spotify token and expiry time
-token = ''
-t_expiry = 0
+spotify_token = ''
+spotify_token_expiry = 0
 
 gh_issue_text = "If you feel there's an error, open a ticket at " \
                 "https://github.com/SwagLyrics/SwagLyrics-For-Spotify/issues"
@@ -52,7 +59,7 @@ SQLALCHEMY_DATABASE_URI = "mysql+mysqlconnector://{username}:{password}@{usernam
                           "com/{username}${databasename}".format(
                                                                 username=username,
                                                                 password=os.environ['DB_PWD'],
-                                                                databasename="strippers",
+                                                                databasename="strippers"
                                                             )
 app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_POOL_RECYCLE"] = 280
@@ -83,22 +90,43 @@ class Lyrics(db.Model):
 
 # ------------------- important functions begin here ------------------- #
 
+def get_github_token():
+    """
+    Returns the github auth token, update if expired.
+    :return: github token
+    """
+    global gh_token, gh_token_expiry
+    # 3 minutes buffer
+    if gh_token_expiry - 180 > time.time():
+        print(f"using github token: {gh_token[:22]}")
+        return gh_token
+    print("updating github token")
+    private_pem = os.environ['PRIVATE_PEM']
+    jwt = get_jwt(os.environ['APP_ID'], private_pem)
+    response = get_installation_access_token(jwt, os.environ['INST_ID']).json()
+    gh_token = response["token"]
+    gh_token_expiry = dt.strptime(response["expires_at"], "%Y-%m-%dT%H:%M:%S%z").timestamp()
+    print(f"github token updated: {gh_token[:22]}")
+    return gh_token
 
-def update_token():
+
+def get_spotify_token():
     """
-    Update the global Spotify Access Token variable and expiry time.
-    :return:
+    Return the spotify auth token, update if expired.
+    :return: spotify token
     """
-    global token, t_expiry
+    global spotify_token, spotify_token_expiry
+    # check if token expired ( - 300 to add buffer of 5 minutes)
+    if spotify_token_expiry - 300 > time.time():
+        print(f'using spotify token: {spotify_token[:41]}')
+        return spotify_token
     r = requests.post('https://accounts.spotify.com/api/token', data={
         'grant_type': 'client_credentials'}, auth=HTTPBasicAuth(os.environ['C_ID'], os.environ['SECRET']))
-    token = r.json()['access_token']
-    t_expiry = time.time()
-    print('updated token', token[:41])
-
-
-# initialize the Spotify token and expiry time
-update_token()
+    spotify_token = r.json()['access_token']
+    # token valid for an hour
+    spotify_token_expiry = time.time() + 3600
+    print(f'updated spotify token: {spotify_token[:41]}')
+    return spotify_token
 
 
 def genius_stripper(song, artist):
@@ -122,8 +150,8 @@ def genius_stripper(song, artist):
     print(f'stripped title: {title}')
 
     words = title.split()
-
     max_err = len(words) // 2
+
     # allow half length mismatch
     print(f'max_err is set to {max_err}')
 
@@ -138,15 +166,7 @@ def genius_stripper(song, artist):
                 full_title = re.sub(alg, '', full_title)
                 print(f'stripped full title: {full_title}')
 
-                err_cnt = 0
-
-                for word in words:
-                    if word.lower() not in full_title.lower():
-                        err_cnt += 1
-                        print(f'broke on {word}')
-                        if err_cnt > max_err:
-                            break
-                else:
+                if not is_title_mismatched(words, full_title, max_err):
                     # return stripper as no mismatch
                     path = gstr.search(hit['result']['path'])
                     try:
@@ -158,6 +178,17 @@ def genius_stripper(song, artist):
 
             print('stripper not found')
             return None
+
+
+def is_title_mismatched(words, full_title, max_err):
+    err_cnt = 0
+    for word in words:
+        if word.lower() not in full_title.lower():
+            err_cnt += 1
+            print(f'broke on {word}')
+            if err_cnt > max_err:
+                return True
+    return False
 
 
 def create_issue(song, artist, version, stripper='not supported yet'):
@@ -175,8 +206,13 @@ def create_issue(song, artist, version, stripper='not supported yet'):
                 f"stripper -> {stripper}</b>\n\nversion -> {version}</tt>",
         "labels": ["unsupported song"]
     }
-    r = requests.post('https://api.github.com/repos/SwagLyrics/swaglyrics-for-spotify/issues',
-                      auth=HTTPBasicAuth(username, gh_token), json=json)
+    headers = {
+                "Authorization": f"token {get_github_token()}",
+                "Accept": "application/vnd.github.machine-man-preview+json"
+    }
+
+    r = requests.post('https://api.github.com/repos/SwagLyrics/Swaglyrics-For-Spotify/issues',
+                      headers=headers, json=json)
 
     return {
         'status_code': r.status_code,
@@ -195,11 +231,7 @@ def check_song(song, artist):
     :param artist: the artist of song
     :return: Boolean depending if it was found on Spotify or not
     """
-    global token, t_expiry
-    print('using token', token[:41])
-    if t_expiry + 3600 - 300 < time.time():  # check if token expired ( - 300 to add buffer of 5 minutes)
-        update_token()
-    headers = {"Authorization": f"Bearer {token}"}
+    headers = {"Authorization": f"Bearer {get_spotify_token()}"}
     r = requests.get('https://api.spotify.com/v1/search', headers=headers, params={'q': f'{song} {artist}',
                                                                                    'type': 'track'})
     try:
@@ -241,6 +273,40 @@ def del_line(song, artist):
             f.write(line)
     # return number of lines deleted
     return cnt
+
+
+def discord_deploy(payload):
+    """
+    sends message to Discord server when deploy from github to backend successful.
+    """
+    # https://discordapp.com/developers/docs/resources/webhook#execute-webhook
+    url = f"https://discordapp.com/api/webhooks/{os.environ['DISCORD_URL']}?wait=true"
+    head_commit = payload["head_commit"]
+    author = head_commit["author"]
+    json = {
+        "embeds": [{
+            "title": head_commit["message"].split('\n')[0],  # split in case commits squashed
+            "description": f"Updated [PythonAnywhere server](https://api.swaglyrics.dev) to commit "
+                           f"`{head_commit['id']}`.",
+            "url": head_commit["url"],
+            "thumbnail": {
+                "url": "https://avatars2.githubusercontent.com/u/48502066?v=4"
+            },
+            "timestamp": head_commit["timestamp"],
+            "color": 1501879,
+            "author": {
+                "name": author["name"],
+                "url": f"https://github.com/{author['username']}",
+                "icon_url": f"https://github.com/{author['username']}.png",
+            }
+        }]
+    }
+
+    r = requests.post(url, json=json)
+    if r.status_code == requests.codes.ok:
+        print("sent discord message")
+    else:
+        print(f"discord message send failed: {r.status_code}")
 
 
 # ------------------- routes begin here ------------------- #
@@ -388,9 +454,6 @@ def github_webhook():
                 cnt = del_line(song, artist)
                 return f'Deleted {cnt} instances from unsupported.txt'
 
-        # Respond to star event by posting on discord in #gh-activity on SwagLyrics guild
-        elif event == "star":
-            pass
         else:
             return json.dumps({'msg': 'Wrong event type'})
 
@@ -428,6 +491,11 @@ def update_webhook():
         commit_hash = pull_info[0].commit.hexsha
         build_commit = f'build_commit = "{commit_hash}"'
         print(f'{build_commit}')
+        if commit_hash == payload["after"]:
+            # since payload is from github and pull info is what we pulled from git
+            discord_deploy(payload)
+        else:
+            print(f'weird mismatch: {commit_hash=} {payload["after"]=}')
         return 'Updated PythonAnywhere server to commit {commit}'.format(commit=commit_hash)
     else:
         return json.dumps({'msg': "Wrong event type"})
@@ -439,10 +507,14 @@ def latest_version():
     return __version__
 
 
-# test path to assist in testing of server
+# test path to check if changes propagate and env variables work
 @app.route('/test')
 def swag():
-    return os.environ['BLAZEIT']
+    """
+    there are two env vars configured to test this route, BLAZEIT and SWAG.
+    the values are changed and this route is checked to see if changes are live.
+    """
+    return os.environ['SWAG']
 
 
 # Route to test rate limiter is functioning correctly
@@ -459,3 +531,7 @@ def hello():
     with open('unsupported.txt', 'r', encoding="utf-8") as f:
         data = f.readlines()
     return render_template('hello.html', unsupported_songs=data)
+
+
+if __name__ == "__main__":
+    app.run()
