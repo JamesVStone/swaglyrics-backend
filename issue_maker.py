@@ -212,7 +212,7 @@ def check_song(song, artist):
         if track['name'] == song and track['artists'][0]['name'] == artist:
             print(f'{song} and {artist} legit on Spotify')
             metadata = requests.get(f'https://api.spotify.com/v1/audio-features/{track["id"]}', headers=headers)
-            if metadata["instrumentalness"] > 0.5:
+            if metadata["instrumentalness"] > 0.45 and metadata["speechiness"] < 0.04:
                 print(f'{song} and {artist} are instrumental')
                 return False
             return True
