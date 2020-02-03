@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 from werkzeug.exceptions import ImATeapot
 
@@ -59,3 +59,12 @@ class TestUtils(TestBase):
             req.headers = self.github_headers
             with self.assertRaises(ImATeapot):
                 validate_request(req)
+
+    @patch("swaglyrics_backend.utils.is_valid_signature", return_value=True)
+    @patch("request.")
+    @patch("flask.request.get_json", return_value=github_json)
+    def test_that_validate_request_returns_payload(self, is_valid_sig, get_json):
+        from swaglyrics_backend.utils import validate_request, is_valid_signature
+        req = Mock()
+        x = validate_request(req)
+        self.assertEqual(x, self.github_json)
