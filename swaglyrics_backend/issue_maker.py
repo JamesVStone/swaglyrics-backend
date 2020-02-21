@@ -243,14 +243,24 @@ def check_song(song, artist):
         print(track['artists'][0]['name'], track['name'])
         if track['name'] == song and track['artists'][0]['name'] == artist:
             print(f'{song} and {artist} legit on Spotify')
-            metadata = requests.get(f'https://api.spotify.com/v1/audio-features/{track["id"]}', headers=headers).json()
-            if metadata["instrumentalness"] > 0.45 and metadata["speechiness"] < 0.04:
-                print(f'{song} by {artist} is instrumental')
-                return False
-            return True
+            if not check_song_instrumental(track, headers):
+                return True
+            print(f'{song} by {artist} seems to be instrumental')
     else:
         print(f'{song} and {artist} don\'t seem legit.')
 
+    return False
+
+
+def check_song_instrumental(track, headers):
+    """
+    Helper function to determine if song is instrumental using spotify audio features API.
+
+    Returns true if it considers a song to be instrumental.
+    """
+    metadata = requests.get(f'https://api.spotify.com/v1/audio-features/{track["id"]}', headers=headers).json()
+    if metadata["instrumentalness"] > 0.45 and metadata["speechiness"] < 0.04:
+        return True
     return False
 
 
