@@ -14,7 +14,7 @@ from datetime import datetime as dt
 
 from requests.auth import HTTPBasicAuth
 from swaglyrics import __version__
-from swaglyrics.cli import stripper
+from swaglyrics.cli import stripper, spc
 
 from swaglyrics_backend.utils import request_from_github, validate_request, get_jwt, get_installation_access_token
 
@@ -48,6 +48,7 @@ update_text = 'Please update SwagLyrics to the latest version to get better supp
 # genius stripper regex
 alg = re.compile(r'[^\sa-zA-Z0-9]+')
 gstr = re.compile(r'(?<=/)[-a-zA-Z0-9]+(?=-lyrics$)')
+aug = re.compile(r'(\([^)]*\)|- .*)')  # remove braces and included text and text after '- ' to search better on Genius
 
 # webhook regex
 wdt = re.compile(r'(.+) by (.+) unsupported.')
@@ -142,7 +143,9 @@ def genius_stripper(song, artist):
     title = f'{song} by {artist}'
     print(f'getting stripper from Genius for {title}')
     url = 'https://api.genius.com/search'
-    headers = {"Authorization": "Bearer {token}".format(token=os.environ['GENIUS'])}
+    headers = {"Authorization": f"Bearer {os.environ['GENIUS']}"}
+    song = spc.sub(' ', aug.sub('', song))  # strip extra info from song and combine spaces
+    print(f'stripped song: {song}')
     params = {'q': f'{song} {artist}'}
     r = requests.get(url, params=params, headers=headers)
     # remove punctuation before comparison
@@ -359,8 +362,8 @@ def update():
             if issue['status_code'] == 201:
                 print(f'Created issue on the GitHub repo for {song} by {artist}.')
                 return 'Lyrics for that song may not exist on Genius. ' \
-                       'Created issue on the GitHub repo for {song} by {artist} to investigate ' \
-                       'further. \n{link}'.format(song=song, artist=artist, link=issue['link'])
+                       f'Created issue on the GitHub repo for {song} by {artist} to investigate ' \
+                       f'further. \n{issue["link"]}'
             else:
                 return f'Logged {song} by {artist} in the server.'
 
@@ -377,7 +380,7 @@ def get_stripper():
         return lyrics.stripper
     g_stripper = genius_stripper(song, artist)
     if g_stripper:
-        print('using genius_stripper: {}'.format(g_stripper))
+        print(f'using genius_stripper: {g_stripper}')
         return g_stripper
     else:
         print('did not find stripper to return :(')
@@ -419,16 +422,14 @@ def delete_line():
     return f"Removed {cnt} instances of {song} by {artist} from unsupported.txt successfully."
 
 
-"""
-`github_webhook` function handles all notification from GitHub relating to the org. Documentation for the webhooks can
-be found at https://developer.github.com/webhooks/
-"""
-
-
 @app.route('/issue_closed', methods=['POST'])
 @request_from_github()  # verify that request origin is github
 @limiter.exempt  # disable limiter for firehose
 def github_webhook():
+    """
+    `github_webhook` function handles all notification from GitHub relating to the org. Documentation for the webhooks can
+    be found at https://developer.github.com/webhooks/
+    """
     if request.method != 'POST':
         return 'OK'
     else:
@@ -506,7 +507,7 @@ def update_webhook():
             discord_deploy(payload)
         else:
             print(f'weird mismatch: {commit_hash=} {payload["after"]=}')
-        return 'Updated PythonAnywhere server to commit {commit}'.format(commit=commit_hash)
+        return f'Updated PythonAnywhere server to commit {commit_hash}'
     else:
         return json.dumps({'msg': "Wrong event type"})
 
